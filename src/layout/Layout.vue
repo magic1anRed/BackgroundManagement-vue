@@ -90,7 +90,7 @@
 
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { useCurrentUserStore } from '@/stores/currentUser'
+import { useCurrentUserStore } from '@/stores/currentUser.js'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 // 假设您的 axios 已经通过全局注入或别的方式可用
@@ -148,16 +148,13 @@ function buildMenuTree(list, parentId = 0) {
         // 递归查找子节点
         children: buildMenuTree(list, item.id)
       };
-
       // 如果子节点为空数组，则删除 children 属性，防止渲染不必要的箭头
       if (newItem.children.length === 0) {
         delete newItem.children;
       }
-
       tree.push(newItem);
     }
   });
-
   return tree;
 }
 
@@ -182,9 +179,6 @@ function getUserMenu() {
       menuList.value = [];
       console.warn('用户菜单数据为空');
     }
-  }).catch(error => {
-    console.error('获取菜单失败', error);
-    menuList.value = [];
   })
 }
 
@@ -259,10 +253,13 @@ function goTo(path) {
 
 // 注销登录
 function logout() {
-  localStorage.removeItem('token')
-  userStore.currentUser = null
-  ElMessage.success('已安全注销')
-  router.push('/login')
+  axios.post('/logout').then(res => {
+    console.log(res)
+    localStorage.removeItem('token')
+    userStore.currentUser = null
+    ElMessage.success('已安全注销')
+    router.push('/')
+  })
 }
 
 

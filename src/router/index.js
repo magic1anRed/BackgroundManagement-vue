@@ -9,7 +9,7 @@ const router = createRouter({
     },
     {
       path: '/admin',
-      component: () => import('@/views/Layout.vue'), // 公共布局组件
+      component: () => import('@/layout/Layout.vue'), // 公共布局组件
       redirect: '/admin/index', // 默认子路由
       children: [
         {
