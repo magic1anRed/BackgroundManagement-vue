@@ -15,7 +15,10 @@
             unique-opened
         >
           <template v-for="item in menuList" :key="item.id">
-            <el-sub-menu v-if="item.children && item.children.length" :index="item.path">
+            <el-sub-menu
+                v-if="item.children && item.children.length"
+                :index="String(item.id)"
+            >
               <template #title>
                 <el-icon><component :is="item.icon || 'Menu'" /></el-icon>
                 <span>{{ item.name }}</span>
@@ -23,7 +26,7 @@
 
               <el-menu-item
                   v-for="child in item.children"
-                  :index="child.path"
+                  :index="String(child.id)"
                   :key="child.id"
               >
                 <el-icon><component :is="child.icon || 'Document'" /></el-icon>
@@ -93,8 +96,7 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { useCurrentUserStore } from '@/stores/currentUser.js'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-// 假设您的 axios 已经通过全局注入或别的方式可用
-const axios = window.axios; // 或者 import axios from '@/util/axios.js'
+
 
 // --- 响应式状态 ---
 const collapse = ref(false) // 侧边栏折叠状态
@@ -120,6 +122,9 @@ const ICON_MAP = {
   '角色管理': 'ChromeFilled',
   '菜单权限管理': 'Document',
   '部门管理': 'OfficeBuilding',
+  '日志管理': 'Document',
+  '操作日志': 'EditPen',
+  '登录日志': 'Key',
   '/dashboard': 'HomeFilled', // 假设/dashboard是首页路径
   default: 'Menu' // 默认图标
 };
@@ -171,16 +176,12 @@ function getUserMenu() {
       userId: currentUser.value.id
     }
   }).then(res => {
-    if (res.data && res.data.length > 0) {
       // 转换为树形结构，并更新菜单列表
       const processedMenu = buildMenuTree(res.data, 0);
       menuList.value = processedMenu;
-    } else {
-      menuList.value = [];
-      console.warn('用户菜单数据为空');
-    }
   })
 }
+
 
 
 // 计算属性：获取当前路由标题
@@ -254,7 +255,6 @@ function goTo(path) {
 // 注销登录
 function logout() {
   axios.post('/logout').then(res => {
-    console.log(res)
     localStorage.removeItem('token')
     userStore.currentUser = null
     ElMessage.success('已安全注销')

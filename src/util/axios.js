@@ -1,4 +1,6 @@
     import axios from 'axios'
+    import {ElMessage} from "element-plus";
+    import router from "@/router/index.js";
 
     // 创建 axios 实例（但名字仍然叫 axios）
     const axiosInstance = axios.create({
@@ -10,8 +12,8 @@
     axiosInstance.interceptors.request.use(config => {
         const token = localStorage.getItem('token');
         if (token) {
-            // 使用后端期望的header名称
-            config.headers.magicToken = token; // 或者 'magicToken'
+            // 使用后端的名称
+            config.headers.magicToken = token;
         }
         return config;
     }, error => {
@@ -20,10 +22,19 @@
 
     // 响应拦截器
     axiosInstance.interceptors.response.use(
-        response => {
-            return response.data
+        function (response) {
+            if (response.data.code === 401){
+                localStorage.clear()
+                ElMessage.error("请先登录")
+                router.push('/')
+            }else if (response.data.code !== 200){
+                ElMessage.error(response.data.message)
+            }else if (response.data.code === 200){
+                return response.data
+            }
         },
-        error => {
+        function (error) {
+            ElMessage.error(error.message)
             console.error('请求异常:', error)
             return Promise.reject(error)
         }

@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import {ElMessage} from "element-plus";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -22,4 +23,21 @@ const router = createRouter({
   ],
 })
 
+router.beforeEach((to, from, next) => {
+  var token = localStorage.getItem("token");
+  if (to.path === '/' && token){
+    //token存在且访问登录页 强制返回首页
+    ElMessage.success("欢迎回来~")
+    next({ path: '/admin/index'})
+  }else if (to.path === '/'){
+    //跳转登录页
+    next()
+  }else if (!token){
+    //token不存在 跳转登录页
+    ElMessage.error("请先登录")
+    next({ path: '/'})
+  }
+
+  next()
+})
 export default router
