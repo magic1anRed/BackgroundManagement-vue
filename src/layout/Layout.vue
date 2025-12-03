@@ -254,12 +254,7 @@ function goTo(path) {
 
 // 注销登录
 function logout() {
-  axios.post('/logout').then(res => {
-    localStorage.removeItem('token')
-    userStore.currentUser = null
-    ElMessage.success('已安全注销')
-    router.push('/')
-  })
+  userStore.logout();
 }
 
 
