@@ -26,7 +26,7 @@
 
               <el-menu-item
                   v-for="child in item.children"
-                  :index="String(child.id)"
+                  :index="child.path"
                   :key="child.id"
               >
                 <el-icon><component :is="child.icon || 'Document'" /></el-icon>

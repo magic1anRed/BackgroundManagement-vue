@@ -11,7 +11,7 @@ import qs from 'qs';
 const loginFormRef = ref(null);
 const loginForm = reactive({
   username: 'magic1', // 方便测试，可设置默认值
-  password: 'password', // 方便测试，可设置默认值
+  password: '', // 方便测试，可设置默认值
 });
 
 // 登录按钮的加载状态

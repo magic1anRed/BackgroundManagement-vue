@@ -17,6 +17,20 @@ const router = createRouter({
           path: 'index',
           name: 'AdminIndex',
           component: () => import('@/views/IndexView.vue'),
+        },
+        {
+          //用户个人信息页面
+          path: 'info',
+          name: 'UserInfo',
+          component: () => import('@/views/UserInfo.vue'),
+          meta: { title: '个人中心' }
+        },
+        {
+          //部门管理页面
+          path: 'dept',
+          name: 'Dept',
+          component: () => import('@/views/DeptView.vue'),
+          meta: { title: '部门管理' }
         }
       ]
     }
