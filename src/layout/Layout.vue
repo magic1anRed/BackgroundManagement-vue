@@ -173,6 +173,7 @@ function loadMenus() {
       userId: currentUser.value.id
     }
   }).then(res => {
+
     // 图标映射，按你的 ICON_MAP 来
     const fixIcon = (list) => {
       return list.map(item => {
@@ -185,8 +186,10 @@ function loadMenus() {
         };
       });
     };
+
     // 修复后的菜单
     const finalMenus = fixIcon(res.data);
+
     // 存到 Pinia
     menuStore.setMenus(finalMenus);
   });

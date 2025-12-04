@@ -31,6 +31,20 @@ const router = createRouter({
           name: 'Dept',
           component: () => import('@/views/DeptView.vue'),
           meta: { title: '部门管理' }
+        },
+        {
+          //角色管理页面
+          path: 'role',
+          name: 'Role',
+          component: () => import('@/views/RoleView.vue'),
+          meta: { title: '角色管理' }
+        },
+        {
+          //用户管理页面
+          path: 'user',
+          name: 'User',
+          component: () => import('@/views/UsersView.vue'),
+          meta: { title: '用户管理' }
         }
       ]
     }
