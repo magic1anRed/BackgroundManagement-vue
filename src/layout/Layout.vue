@@ -1,3 +1,209 @@
+<script setup>
+import { ref, computed, onMounted, nextTick } from 'vue'
+import { useCurrentUserStore } from '@/stores/currentUser.js'
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import {useMenuStore} from "@/stores/menus.js";
+
+
+// --- 响应式状态 ---
+const collapse = ref(false) // 侧边栏折叠状态
+const router = useRouter() // 路由实例
+const route = useRoute() // 当前路由信息
+
+// --- Pinia Store 和 Computed 属性 ---
+const userStore = useCurrentUserStore() // 用户信息 Store
+const currentUser = computed(() => userStore.currentUser || {}) // 当前登录用户信息
+
+// 当前激活菜单的 path
+const activeMenu = computed(() => route.path)
+// 动态菜单列表，初始为空，等待异步获取
+const menuList = computed(() => menuStore.menus)
+
+const menuStore = useMenuStore();
+// --- 动态菜单逻辑和工具函数 ---
+
+// 1. 图标映射：将后端权限名称/路径映射到 Element Plus Icon 组件名称
+const ICON_MAP = {
+  '首页': 'HomeFilled',
+  '系统管理': 'Setting',
+  '用户管理': 'User',
+  '角色管理': 'ChromeFilled',
+  '菜单权限管理': 'Document',
+  '部门管理': 'OfficeBuilding',
+  '日志管理': 'Document',
+  '操作日志': 'EditPen',
+  '登录日志': 'Key',
+  '/dashboard': 'HomeFilled', // 假设/dashboard是首页路径
+  default: 'Menu' // 默认图标
+};
+
+/**
+ * 2. 菜单数据转换：将扁平的菜单数组转换为 el-menu 需要的树形结构，并添加图标等前端属性。
+ * @param {Array} list - 后端返回的扁平菜单列表。
+ * @param {Number} parentId - 当前层级的父ID (根节点通常为 0)。
+ * @returns {Array} 转换后的树形结构。
+ */
+function buildMenuTree(list, parentId = 0) {
+  const tree = [];
+
+  list.forEach(item => {
+    if (item.parentId === parentId) {
+      // 转换并添加前端所需字段
+      const newItem = {
+        id: item.id,
+        name: item.name,
+        path: item.path,
+        // 根据 name 或 path 查找对应图标
+        icon: ICON_MAP[item.name] || ICON_MAP[item.path] || ICON_MAP.default,
+        meta: {
+          title: item.name // 用于顶栏标题
+        },
+        // 递归查找子节点
+        children: buildMenuTree(list, item.id)
+      };
+      // 如果子节点为空数组，则删除 children 属性，防止渲染不必要的箭头
+      if (newItem.children.length === 0) {
+        delete newItem.children;
+      }
+      tree.push(newItem);
+    }
+  });
+  return tree;
+}
+
+/*
+*
+ * 3. 获取用户菜单权限列表，并动态渲染到侧边栏。
+function getUserMenu() {
+  if (!currentUser.value.id) {
+    console.error('用户ID未获取，无法请求菜单');
+    return;
+  }
+  axios.get('/perms/getPermsList', {
+    params: {
+      userId: currentUser.value.id
+    }
+  }).then(res => {
+    // 转换为树形结构，并更新菜单列表
+    const processedMenu = buildMenuTree(res.data, 0);
+    menuList.value = processedMenu;
+  })
+}
+*/
+
+
+
+// 计算属性：获取当前路由标题
+const currentTitle = computed(() => {
+  if (route.meta.title) {
+    return route.meta.title;
+  }
+  const findTitle = (list) => {
+    if (!list) return '控制台';
+    for (const item of list) {
+      if (item.path === route.path) {
+        return item.name;
+      }
+      if (item.children) {
+        const childTitle = findTitle(item.children);
+        if (childTitle) return childTitle;
+      }
+    }
+    return '控制台';
+  };
+  // 从动态加载的 menuList 中查找标题
+  return findTitle(menuList.value);
+});
+
+// 函数：根据路由路径查找对应图标，用于顶栏显示
+const getIconForRoute = (path) => {
+  const findIcon = (list) => {
+    if (!list) return 'Menu';
+    for (const item of list) {
+      if (item.path === path) {
+        return item.icon;
+      }
+      if (item.children) {
+        const childIcon = findIcon(item.children);
+        if (childIcon) return childIcon;
+      }
+    }
+    return 'Menu'; // 默认图标
+  };
+  return findIcon(menuList.value);
+};
+
+
+// --- 交互及控制函数 ---
+
+/**
+ * 菜单折叠/展开控制函数。
+ * 解决折叠菜单 Bug 的关键：使用 nextTick 确保 DOM 更新后，菜单组件正确重绘。
+ */
+const handleCollapse = () => {
+  collapse.value = !collapse.value;
+  nextTick(() => {
+    // 强制更新菜单和滚动条布局
+  });
+};
+
+// 下拉菜单命令处理
+function handleCommand(command) {
+  if (command === 'logout') {
+    logout();
+  } else {
+    goTo(command);
+  }
+}
+
+// 路由跳转
+function goTo(path) {
+  router.push(`/admin/${path}`)
+}
+
+// 注销登录
+function logout() {
+  userStore.logout();
+}
+
+function loadMenus() {
+  axios.get("/perms/getPermsList", {
+    params: {
+      userId: currentUser.value.id
+    }
+  }).then(res => {
+    // 图标映射，按你的 ICON_MAP 来
+    const fixIcon = (list) => {
+      return list.map(item => {
+        return {
+          ...item,
+          // 覆盖 icon 字段
+          icon: ICON_MAP[item.name] || ICON_MAP[item.path] || ICON_MAP.default,
+          // 递归修复 children
+          children: item.children ? fixIcon(item.children) : []
+        };
+      });
+    };
+    // 修复后的菜单
+    const finalMenus = fixIcon(res.data);
+    // 存到 Pinia
+    menuStore.setMenus(finalMenus);
+  });
+}
+
+
+// --- 生命周期钩子 ---
+onMounted(() => {
+    axios.get('/getInfo').then(res => {
+      userStore.setCurrentUser(res.data);
+      // 加载用户权限菜单
+      loadMenus();
+    })
+});
+</script>
+
+
 <template>
   <el-container class="layout-container">
     <el-aside :width="collapse ? '64px' : '200px'" class="aside-menu">
@@ -91,189 +297,6 @@
   </el-container>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
-import { useCurrentUserStore } from '@/stores/currentUser.js'
-import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
-
-
-// --- 响应式状态 ---
-const collapse = ref(false) // 侧边栏折叠状态
-const router = useRouter() // 路由实例
-const route = useRoute() // 当前路由信息
-
-// --- Pinia Store 和 Computed 属性 ---
-const userStore = useCurrentUserStore() // 用户信息 Store
-const currentUser = computed(() => userStore.currentUser || {}) // 当前登录用户信息
-
-// 当前激活菜单的 path
-const activeMenu = computed(() => route.path)
-// 动态菜单列表，初始为空，等待异步获取
-const menuList = ref([])
-
-// --- 动态菜单逻辑和工具函数 ---
-
-// 1. 图标映射：将后端权限名称/路径映射到 Element Plus Icon 组件名称
-const ICON_MAP = {
-  '首页': 'HomeFilled',
-  '系统管理': 'Setting',
-  '用户管理': 'User',
-  '角色管理': 'ChromeFilled',
-  '菜单权限管理': 'Document',
-  '部门管理': 'OfficeBuilding',
-  '日志管理': 'Document',
-  '操作日志': 'EditPen',
-  '登录日志': 'Key',
-  '/dashboard': 'HomeFilled', // 假设/dashboard是首页路径
-  default: 'Menu' // 默认图标
-};
-
-/**
- * 2. 菜单数据转换：将扁平的菜单数组转换为 el-menu 需要的树形结构，并添加图标等前端属性。
- * @param {Array} list - 后端返回的扁平菜单列表。
- * @param {Number} parentId - 当前层级的父ID (根节点通常为 0)。
- * @returns {Array} 转换后的树形结构。
- */
-function buildMenuTree(list, parentId = 0) {
-  const tree = [];
-
-  list.forEach(item => {
-    if (item.parentId === parentId) {
-      // 转换并添加前端所需字段
-      const newItem = {
-        id: item.id,
-        name: item.name,
-        path: item.path,
-        // 根据 name 或 path 查找对应图标
-        icon: ICON_MAP[item.name] || ICON_MAP[item.path] || ICON_MAP.default,
-        meta: {
-          title: item.name // 用于顶栏标题
-        },
-        // 递归查找子节点
-        children: buildMenuTree(list, item.id)
-      };
-      // 如果子节点为空数组，则删除 children 属性，防止渲染不必要的箭头
-      if (newItem.children.length === 0) {
-        delete newItem.children;
-      }
-      tree.push(newItem);
-    }
-  });
-  return tree;
-}
-
-/**
- * 3. 获取用户菜单权限列表，并动态渲染到侧边栏。
- */
-function getUserMenu() {
-  if (!currentUser.value.id) {
-    console.error('用户ID未获取，无法请求菜单');
-    return;
-  }
-  axios.get('/perms/getPermsList', {
-    params: {
-      userId: currentUser.value.id
-    }
-  }).then(res => {
-      // 转换为树形结构，并更新菜单列表
-      const processedMenu = buildMenuTree(res.data, 0);
-      menuList.value = processedMenu;
-  })
-}
-
-
-
-// 计算属性：获取当前路由标题
-const currentTitle = computed(() => {
-  if (route.meta.title) {
-    return route.meta.title;
-  }
-  const findTitle = (list) => {
-    if (!list) return '控制台';
-    for (const item of list) {
-      if (item.path === route.path) {
-        return item.name;
-      }
-      if (item.children) {
-        const childTitle = findTitle(item.children);
-        if (childTitle) return childTitle;
-      }
-    }
-    return '控制台';
-  };
-  // 从动态加载的 menuList 中查找标题
-  return findTitle(menuList.value);
-});
-
-// 函数：根据路由路径查找对应图标，用于顶栏显示
-const getIconForRoute = (path) => {
-  const findIcon = (list) => {
-    if (!list) return 'Menu';
-    for (const item of list) {
-      if (item.path === path) {
-        return item.icon;
-      }
-      if (item.children) {
-        const childIcon = findIcon(item.children);
-        if (childIcon) return childIcon;
-      }
-    }
-    return 'Menu'; // 默认图标
-  };
-  return findIcon(menuList.value);
-};
-
-
-// --- 交互及控制函数 ---
-
-/**
- * 菜单折叠/展开控制函数。
- * 解决折叠菜单 Bug 的关键：使用 nextTick 确保 DOM 更新后，菜单组件正确重绘。
- */
-const handleCollapse = () => {
-  collapse.value = !collapse.value;
-  nextTick(() => {
-    // 强制更新菜单和滚动条布局
-  });
-};
-
-// 下拉菜单命令处理
-function handleCommand(command) {
-  if (command === 'logout') {
-    logout();
-  } else {
-    goTo(command);
-  }
-}
-
-// 路由跳转
-function goTo(path) {
-  router.push(`/admin/${path}`)
-}
-
-// 注销登录
-function logout() {
-  userStore.logout();
-}
-
-
-// --- 生命周期钩子 ---
-onMounted(async () => {
-  // 1. 先尝试获取用户基础信息
-  try {
-    const res = await axios.get('/getInfo');
-    if (res.data) {
-      userStore.setCurrentUser(res.data);
-      // 2. 确保用户信息设置后，再加载用户权限菜单
-      await getUserMenu();
-    }
-  } catch (err) {
-    console.error('获取用户信息失败', err);
-    // 失败处理：如果获取用户信息失败，可能需要跳转到登录页
-  }
-});
-</script>
 
 <style scoped>
 /* ========================================= */

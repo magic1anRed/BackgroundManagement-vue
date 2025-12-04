@@ -1,6 +1,8 @@
 <script setup>
 import {ref, computed, reactive, onMounted} from "vue"
 import {ElMessage, ElMessageBox} from "element-plus";
+import {useCurrentUserStore} from "@/stores/currentUser.js";
+import {useMenuStore} from "@/stores/menus.js";
 
 
 // ------------------ 响应式数据 ------------------
@@ -142,6 +144,12 @@ const onUpdateDept = () => {
   })
 }
 
+// ------------------ 按钮权限校验方法 ------------------
+const menuStore = useMenuStore();
+function hasPerm(perm) {
+  // 直接调用 Store 中封装好的 hasPerm 方法
+  return menuStore.hasPerm(perm);
+}
 // ------------------ 生命周期 ------------------
 // 页面加载完成后调用一次接口
 onMounted(() => {
@@ -157,9 +165,9 @@ onMounted(() => {
         <el-input v-model="searchName" placeholder="请输入部门名称" @keyup.enter="onSearch"/>
       </el-col>
       <el-col :span="18">
-        <el-button type="primary" @click="onSearch">搜索</el-button>
+        <el-button type="primary" @click="onSearch" v-if="hasPerm('system:dept:query')">搜索</el-button>
         <el-button @click="onReset">重置</el-button>
-        <el-button type="success" @click="addModalVisible = true">添加部门</el-button>
+        <el-button type="success" @click="addModalVisible = true" v-if="hasPerm('system:dept:add')">添加部门</el-button>
       </el-col>
     </el-row>
 
@@ -214,12 +222,11 @@ onMounted(() => {
       </el-table-column>
       <el-table-column label="操作" width="180">
         <template #default="{ row }">
-          <el-button type="primary" size="small" @click="onEditDept(row)">修改</el-button>
-          <el-button type="danger" size="small" @click="onDeleteDept(row)">删除</el-button>
+          <el-button type="primary" size="small" @click="onEditDept(row)" v-if="hasPerm('system:dept:edit')">修改</el-button>
+          <el-button type="danger" size="small" @click="onDeleteDept(row)"  v-if="hasPerm('system:dept:remove')">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
-
     <el-pagination
         style="margin-top: 20px; text-align: right;"
         background
