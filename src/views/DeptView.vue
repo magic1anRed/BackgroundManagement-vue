@@ -4,6 +4,8 @@ import {ElMessage, ElMessageBox} from "element-plus";
 import {useCurrentUserStore} from "@/stores/currentUser.js";
 import {useMenuStore} from "@/stores/menus.js";
 
+// 注意：这里需要确保您在项目中全局引入了 axios 或类似的 HTTP 客户端
+// 否则需要在这里 import axios from 'axios';
 
 // ------------------ 响应式数据 ------------------
 const deptList = ref([]) // 部门数据（当前页数据）
@@ -72,7 +74,8 @@ const onAddDept = () => {
   console.log("添加部门接口占位", newDept.value)
   axios.post("/dept/addDept",newDept.value).then(res => {
     console.log(res)
-    ElMessage.success(`添加部门成功：${res.message}`)
+    // 假设后端返回的数据结构中包含 message
+    ElMessage.success(`添加部门成功：${res.message || '操作成功'}`)
 
     // 成功后：
     closeModal(); // 关闭模态框并清空表单
@@ -97,7 +100,7 @@ const onDeleteDept = (row) => {
       }
   ).then(() => {
     // 2. 用户点击“确定”后，调用删除接口
-    // 注意：后端是 @Put，且参数是 @Param("id")，所以使用 axios.put 并将 id 作为 URL 参数
+    // 注意：后端是 @Delete，所以使用 axios.delete
     axios.delete('/dept/deleteDept',  {
       params: {
         id: row.id // 从 row 中获取部门 ID
@@ -106,12 +109,16 @@ const onDeleteDept = (row) => {
       // 3. 成功处理
       ElMessage.success(`部门【${row.name}】删除成功！`);
       getDeptList(); // 刷新列表
-    })
+    }).catch(error => {
+      console.error("删除失败:", error);
+      ElMessage.error('删除部门失败！');
+    });
   }).catch(() => {
     // 用户点击“取消”
     ElMessage.info('已取消删除操作。');
   });
 }
+
 // ------------------ 【新增/修改】编辑部门相关数据和方法 ------------------
 
 // 1. 响应式数据
@@ -120,11 +127,17 @@ const editDept = ref({}) // 存储当前正在编辑的部门对象
 
 // 2. 方法：弹出编辑模态框
 const onEditDept = (row) => {
-  // 弹出编辑模态框，并将当前行数据深拷贝给 editDept
-  // 使用 {...row} 进行浅拷贝，防止直接修改表格数据
-  editDept.value = {...row};
-  editModalVisible.value = true;
-  console.log("准备修改部门", row)
+  console.log("正在通过 ID 查询部门数据:", row.id);
+
+  // 关键修改：先调用接口查询最新的部门数据
+  axios.get('/dept/getDeptById', {
+    params: {
+      id: row.id // 传入要查询的部门 ID
+    }
+  }).then(res => {
+      editDept.value = res.data
+      editModalVisible.value = true; // 显示模态框
+  })
 }
 
 // 3. 方法：关闭编辑模态框
@@ -133,14 +146,17 @@ const closeEditModal = () => {
   editModalVisible.value = false
 }
 
-// 4. 方法：提交编辑部门信息（占位）
+// 4. 方法：提交编辑部门信息
 const onUpdateDept = () => {
   // **实际逻辑：** 调用修改接口
   axios.put("/dept/updateDept", editDept.value).then(res => {
     console.log(res)
-    ElMessage.success(`修改部门成功ID:  ${editDept.value.id},部门: ${res.data.message}`);
+    ElMessage.success(`修改部门成功ID:  ${editDept.value.id},部门: ${res.data.message || '操作成功'}`);
     closeEditModal();
     getDeptList(); // 刷新列表
+  }).catch(error => {
+    console.error("修改部门失败:", error);
+    ElMessage.error('修改部门失败，请检查网络或权限！');
   })
 }
 
