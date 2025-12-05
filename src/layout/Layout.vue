@@ -273,7 +273,7 @@ onMounted(() => {
           <el-dropdown trigger="click" @command="handleCommand">
             <span class="el-dropdown-link user-info-link">
               <span class="welcome-text">欢迎您，{{ currentUser.realname || '游客' }}</span>
-              <el-avatar :size="30" icon="UserFilled" class="user-avatar" />
+              <el-avatar :size="30" icon="UserFilled" class="user-avatar" :src="currentUser.avatar" />
               <el-icon class="el-icon--right"><ArrowDown /></el-icon>
             </span>
             <template #dropdown>
