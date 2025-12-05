@@ -99,18 +99,19 @@ const onDeleteRole = (row) => {
         type: 'warning',
       }
   ).then(() => {
-    // 接口路径修改为 /role/deleteRole
     axios.delete('/role/deleteRole',  {
       params: {
-        id: row.id // 从 row 中获取角色 ID
+        id: row.id
       }
     }).then(res => {
-      ElMessage.success(`角色【${row.name}】删除成功！`);
-      getRoleList(); // 刷新列表
-    }).catch(error => {
-      console.error("删除失败:", error);
-      ElMessage.error('删除角色失败！');
-    });
+      console.log("-------------", res);
+      if (res.code === 200) {
+        ElMessage.success(`角色【${row.name}】删除成功！`);
+        getRoleList(); // 刷新列表
+      } else {
+        ElMessage.error(res.msg || '删除角色失败！');
+      }
+    })
   }).catch(() => {
     ElMessage.info('已取消删除操作。');
   });
@@ -241,7 +242,15 @@ onMounted(() => {
       <el-table-column label="操作" width="220">
         <template #default="{ row }">
           <el-button type="primary" size="small" @click="onEditRole(row)" v-if="hasPerm('system:role:edit')">修改</el-button>
-          <el-button type="danger" size="small" @click="onDeleteRole(row)"  v-if="hasPerm('system:role:remove')">删除</el-button>
+
+          <el-button
+              type="danger"
+              size="small"
+              @click="onDeleteRole(row)"
+              v-if="hasPerm('system:role:remove')"
+              :disabled="row.id === 1"
+          >删除</el-button>
+
           <el-button type="warning" size="small" :disabled="true">授权</el-button>
         </template>
       </el-table-column>

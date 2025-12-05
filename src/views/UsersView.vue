@@ -18,19 +18,12 @@ const loadDeptAndRoleOptions = () => {
   axios.get('/dept/getDeptName').then(res => {
     // 既然控制台显示 res.data 是 [{id: N, name: 'X'}] 数组，直接赋值
     deptOptions.value = res.data;
-  }).catch(error => {
-    console.error("加载部门数据失败:", error);
-    ElMessage.error('加载部门列表失败！');
-  });
-
+  })
   // 2. 获取角色名称
   axios.get('/role/getRoleName').then(res => {
     // 直接赋值返回的对象数组
     roleOptions.value = res.data;
-  }).catch(error => {
-    console.error("加载角色数据失败:", error);
-    ElMessage.error('加载角色列表失败！');
-  });
+  })
 }
 
 // ------------------ 响应式数据 (保持不变) ------------------
@@ -106,17 +99,11 @@ const onStatusChange = (row) => {
     id: row.id,
     status: newStatus
   };
-
-  axios.put('/user/updateUser', qs.stringify(data))
-      .then(() => {
+  console.log(data)
+  axios.put('/user/updateUserStatus' , qs.stringify(data))
+      .then((res) => {
         ElMessage.success(`用户【${row.username}】状态更新成功！`);
       })
-      .catch(error => {
-        console.error("更新状态失败:", error);
-        // 【反转回滚】如果 1 是正常，0 是禁用，回滚逻辑也需要反转
-        row.status = newStatus === 1 ? 0 : 1;
-        ElMessage.error('更新状态失败！');
-      });
 }
 
 // 接口: /user/addUser (POST 请求，使用 qs 序列化请求体)
@@ -182,28 +169,20 @@ const onEditUser = (row) => {
     }
   })
       .then(res => {
-        editUser.value = res;
+        editUser.value = res.data;
         editUser.value.password = ''; // 清空密码
         editModalVisible.value = true;
       })
-      .catch(error => {
-        console.error("获取用户详情失败:", error);
-        ElMessage.error('获取用户详情失败！');
-      });
 }
 
 // 接口: /user/updateUser (PUT 请求，使用 qs 序列化请求体)
 const onUpdateUser = () => {
   // 确保密码字段处理
   const updateData = {...editUser.value};
-  if (!updateData.password) {
-    delete updateData.password;
-  }
-
-  axios.put("/user/updateUser", qs.stringify(updateData), {
-    headers: {'Content-Type': 'application/x-www-form-urlencoded'}
-  })
+  console.log(updateData)
+  axios.put("/user/updateUser", qs.stringify(updateData))
       .then(res => {
+        console.log(res)
         ElMessage.success(`修改用户成功ID: ${editUser.value.id}, 用户名: ${res.message || '操作成功'}`);
         closeEditModal();
         getUserList();
@@ -377,7 +356,7 @@ onMounted(() => {
         </el-form-item>
 
         <el-form-item label="所属部门">
-          <el-select v-model="editUser.deptID" placeholder="请选择部门" style="width: 100%;">
+          <el-select v-model="editUser.deptId" placeholder="请选择部门" style="width: 100%;">
             <el-option
                 v-for="dept in deptOptions"
                 :key="dept.id"
