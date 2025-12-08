@@ -5,7 +5,8 @@ import {watch} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
 import qs from "qs";
 import {Loading} from '@element-plus/icons-vue'; // 引入 Loading 图标
-const QINIU_DOMAIN = import.meta.env.VITE_QINIU_DOMAIN;
+const domain = import.meta.env.VITE_QINIU_DOMAIN
+
 
 const userStore = useCurrentUserStore()
 
@@ -223,14 +224,9 @@ const onFileChange = (e) => {
     }
   })
       .then(res => {
-        console.log(res)
         isUploading.value = false;
         // 后端返回的是完整的 URL
-        const newAvatarUrl = res.data
-
-        userStore.currentUser.avatar = newAvatarUrl;
-        console.log(userStore.currentUser)
-        console.log(userStore.currentUser.avatar)
+        userStore.currentUser.avatar = res.data;
         ElMessage.success("头像上传成功！");
       })
 };
@@ -247,7 +243,7 @@ const onFileChange = (e) => {
 
       <div style="text-align: center; margin-bottom: 20px;">
         <div class="avatar-upload-container" @click="handleAvatarClick">
-          <el-avatar :size="100" :src="userInfo.avatar"/>
+          <el-avatar :size="100" :src="domain+'/'+userInfo.avatar"/>
 
           <div v-if="isUploading" class="uploading-overlay">
             <el-icon class="is-loading" :size="30">

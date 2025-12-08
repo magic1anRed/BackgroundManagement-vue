@@ -106,8 +106,13 @@ const onDeleteDept = (row) => {
         id: row.id // 从 row 中获取部门 ID
       }
     }).then(res => {
-      // 3. 成功处理
-      ElMessage.success(`部门【${row.name}】删除成功！`);
+      console.log(res)
+      if (res.data.code !== 200){
+        ElMessage.error(res.data.msg || '删除部门失败！');
+      }else {
+        // 3. 成功处理
+        ElMessage.success(`部门【${row.name}】删除成功！`);
+      }
       getDeptList(); // 刷新列表
     }).catch(error => {
       console.error("删除失败:", error);

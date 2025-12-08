@@ -4,6 +4,7 @@ import { useCurrentUserStore } from '@/stores/currentUser.js'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {useMenuStore} from "@/stores/menus.js";
+const domain = import.meta.env.VITE_QINIU_DOMAIN
 
 
 // --- 响应式状态 ---
@@ -173,24 +174,19 @@ function loadMenus() {
       userId: currentUser.value.id
     }
   }).then(res => {
-
-    // 图标映射，按你的 ICON_MAP 来
-    const fixIcon = (list) => {
+    // 递归处理 children
+    const fixMenus = (list) => {
       return list.map(item => {
         return {
           ...item,
-          // 覆盖 icon 字段
-          icon: ICON_MAP[item.name] || ICON_MAP[item.path] || ICON_MAP.default,
-          // 递归修复 children
-          children: item.children ? fixIcon(item.children) : []
+          icon: item.icon || "Menu", // ← 直接用后端 icon
+          children: item.children ? fixMenus(item.children) : []
         };
       });
     };
 
-    // 修复后的菜单
-    const finalMenus = fixIcon(res.data);
+    const finalMenus = fixMenus(res.data);
 
-    // 存到 Pinia
     menuStore.setMenus(finalMenus);
   });
 }
@@ -273,7 +269,7 @@ onMounted(() => {
           <el-dropdown trigger="click" @command="handleCommand">
             <span class="el-dropdown-link user-info-link">
               <span class="welcome-text">欢迎您，{{ currentUser.realname || '游客' }}</span>
-              <el-avatar :size="30" icon="UserFilled" class="user-avatar" :src="currentUser.avatar" />
+              <el-avatar :size="30" icon="UserFilled" class="user-avatar" :src="domain+'/'+currentUser.avatar" />
               <el-icon class="el-icon--right"><ArrowDown /></el-icon>
             </span>
             <template #dropdown>

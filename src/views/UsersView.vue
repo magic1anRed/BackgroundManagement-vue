@@ -83,6 +83,7 @@ const getUserList = () => {
       return qs.stringify(params, {allowDots: true, skipNulls: false})
     }
   }).then(res => {
+    console.log(res)
     userList.value = res.data.data;
     page.total = res.data.total;
   })
@@ -141,15 +142,13 @@ const onDeleteUser = (row) => {
       paramsSerializer: params => {
         return qs.stringify(params)
       }
+    }).then((res) => {
+      console.log(res)
+      if (res.code === 200){
+        ElMessage.success(`用户【${row.username}】删除成功！`);
+        getUserList();
+      }
     })
-        .then(() => {
-          ElMessage.success(`用户【${row.username}】删除成功！`);
-          getUserList();
-        })
-        .catch(error => {
-          console.error("删除用户失败:", error);
-          ElMessage.error('删除用户失败！');
-        });
 
   }).catch((action) => {
     if (action === 'cancel') {
@@ -344,9 +343,6 @@ onMounted(() => {
       <el-form v-if="editUser.id" :model="editUser" label-width="100px">
         <el-form-item label="ID">
           <el-input v-model="editUser.id" disabled/>
-        </el-form-item>
-        <el-form-item label="用户名">
-          <el-input v-model="editUser.username"/>
         </el-form-item>
         <el-form-item label="真实姓名">
           <el-input v-model="editUser.realname"/>

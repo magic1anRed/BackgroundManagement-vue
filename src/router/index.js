@@ -45,6 +45,13 @@ const router = createRouter({
           name: 'User',
           component: () => import('@/views/UsersView.vue'),
           meta: { title: '用户管理' }
+        },
+        {
+          //菜单管理页面
+          path: 'menu',
+          name: 'Menu',
+          component: () => import('@/views/MenuView.vue'),
+          meta: { title: '菜单管理' }
         }
       ]
     }
