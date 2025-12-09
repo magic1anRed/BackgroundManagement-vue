@@ -41,14 +41,13 @@ const ICON_MAP = {
 
 /**
  * 2. 菜单数据转换：将扁平的菜单数组转换为 el-menu 需要的树形结构，并添加图标等前端属性。
- * @param {Array} list - 后端返回的扁平菜单列表。
- * @param {Number} parentId - 当前层级的父ID (根节点通常为 0)。
- * @returns {Array} 转换后的树形结构。
+ * (原代码中被注释的逻辑，但保留函数定义)
  */
 function buildMenuTree(list, parentId = 0) {
   const tree = [];
 
   list.forEach(item => {
+
     if (item.parentId === parentId) {
       // 转换并添加前端所需字段
       const newItem = {
@@ -64,7 +63,7 @@ function buildMenuTree(list, parentId = 0) {
         children: buildMenuTree(list, item.id)
       };
       // 如果子节点为空数组，则删除 children 属性，防止渲染不必要的箭头
-      if (newItem.children.length === 0) {
+      if (newItem.children && newItem.children.length === 0) {
         delete newItem.children;
       }
       tree.push(newItem);
@@ -140,7 +139,6 @@ const getIconForRoute = (path) => {
 
 /**
  * 菜单折叠/展开控制函数。
- * 解决折叠菜单 Bug 的关键：使用 nextTick 确保 DOM 更新后，菜单组件正确重绘。
  */
 const handleCollapse = () => {
   collapse.value = !collapse.value;
@@ -160,6 +158,7 @@ function handleCommand(command) {
 
 // 路由跳转
 function goTo(path) {
+  // 注意：这里的 goTo 也是手动构造 /admin 路由，需要与菜单逻辑保持一致
   router.push(`/admin/${path}`)
 }
 
@@ -168,18 +167,37 @@ function logout() {
   userStore.logout();
 }
 
+/**
+ * 修正后的加载菜单函数：
+ * 在设置菜单数据前，统一给所有菜单路径添加 /admin 前缀。
+ */
 function loadMenus() {
   axios.get("/perms/getPermsList", {
     params: {
       userId: currentUser.value.id
     }
   }).then(res => {
-    // 递归处理 children
+    // 递归处理 children 和添加 /admin 前缀
     const fixMenus = (list) => {
       return list.map(item => {
+        let newPath = item.path;
+
+        // 仅在 path 存在、非空，且不以 /admin 或 /admin/ 开头时添加前缀
+        if (newPath) {
+          if (!newPath.startsWith('/admin')) {
+            // 如果是以 / 开头 (如 /role)，则变成 /admin/role
+            if (newPath.startsWith('/')) {
+              newPath = '/admin' + newPath;
+            } else {
+              // 如果不以 / 开头 (如 role)，则变成 /admin/role
+              newPath = '/admin/' + newPath;
+            }
+          }
+        }
         return {
           ...item,
-          icon: item.icon || "Menu", // ← 直接用后端 icon
+          path: newPath, // 👈 修正后的路径
+          icon: item.icon || "Menu", // 👈 使用后端 icon 或默认值
           children: item.children ? fixMenus(item.children) : []
         };
       });
@@ -194,11 +212,11 @@ function loadMenus() {
 
 // --- 生命周期钩子 ---
 onMounted(() => {
-    axios.get('/getInfo').then(res => {
-      userStore.setCurrentUser(res.data);
-      // 加载用户权限菜单
-      loadMenus();
-    })
+  axios.get('/getInfo').then(res => {
+    userStore.setCurrentUser(res.data);
+    // 加载用户权限菜单
+    loadMenus();
+  })
 });
 </script>
 
