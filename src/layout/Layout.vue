@@ -5,7 +5,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {useMenuStore} from "@/stores/menus.js";
 const domain = import.meta.env.VITE_QINIU_DOMAIN
-
+import {buildDynamicRoutes, addDynamicRoutes, clearDynamicRoutes} from "@/router";
 
 // --- 响应式状态 ---
 const collapse = ref(false) // 侧边栏折叠状态
@@ -164,6 +164,7 @@ function goTo(path) {
 
 // 注销登录
 function logout() {
+  clearDynamicRoutes();
   userStore.logout();
 }
 
@@ -177,27 +178,22 @@ function loadMenus() {
       userId: currentUser.value.id
     }
   }).then(res => {
-    // 递归处理 children 和添加 /admin 前缀
+
+    // 修正 path 前缀
     const fixMenus = (list) => {
       return list.map(item => {
         let newPath = item.path;
 
-        // 仅在 path 存在、非空，且不以 /admin 或 /admin/ 开头时添加前缀
         if (newPath) {
           if (!newPath.startsWith('/admin')) {
-            // 如果是以 / 开头 (如 /role)，则变成 /admin/role
-            if (newPath.startsWith('/')) {
-              newPath = '/admin' + newPath;
-            } else {
-              // 如果不以 / 开头 (如 role)，则变成 /admin/role
-              newPath = '/admin/' + newPath;
-            }
+            if (newPath.startsWith('/')) newPath = '/admin' + newPath;
+            else newPath = '/admin/' + newPath;
           }
         }
+
         return {
           ...item,
-          path: newPath, // 👈 修正后的路径
-          icon: item.icon || "Menu", // 👈 使用后端 icon 或默认值
+          path: newPath,
           children: item.children ? fixMenus(item.children) : []
         };
       });
@@ -205,7 +201,14 @@ function loadMenus() {
 
     const finalMenus = fixMenus(res.data);
 
+    // 存入 Pinia
     menuStore.setMenus(finalMenus);
+
+    // 动态路由生成
+    const asyncRoutes = buildDynamicRoutes(finalMenus);
+
+    // 注入 /admin
+    addDynamicRoutes(asyncRoutes);
   });
 }
 
