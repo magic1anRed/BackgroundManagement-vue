@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus';
 import VCode from 'vue3-puzzle-vcode';
 import router from "@/router/index.js";
 import qs from 'qs';
-
+import {useMenuStore} from "@/stores/menus.js";
 
 // --- 表单数据与状态 ---
 const loginFormRef = ref(null);
@@ -32,6 +32,7 @@ const rules = reactive({
     { min: 6, max: 18, message: '长度应为 6 到 18 个字符', trigger: 'blur' },
   ],
 });
+
 
 /**
  * @function submitForm

@@ -26,6 +26,7 @@ function handleTree(data, idName = 'id', parentIdName = 'parentId', rootId = 0) 
   });
 
   return data.filter(item => {
+    // 顶级节点是 parentId 匹配 rootId，或者 parentId 在数据中找不到对应项（即父级已删除）
     return item[parentIdName] === rootId || !map[item[parentIdName]];
   });
 }
@@ -76,7 +77,7 @@ const defaultForm = {
 
 const form = ref({ ...defaultForm });
 
-// --- ⚠️ 【修改 1】：更新校验规则以满足新需求 ---
+// --- 校验规则 (保持不变) ---
 const rules = reactive({
   name: [{ required: true, message: '菜单名称不能为空', trigger: 'blur' }],
   sortId: [{ required: true, message: '排序不能为空', trigger: 'blur' }],
@@ -112,10 +113,12 @@ const rules = reactive({
 // 监听菜单类型变化，调整必填校验 (保持不变)
 watch(() => form.value.type, (newType) => {
   // 确保在 type 变化时清除旧的校验状态，以便新规则生效
+  // 实际的校验逻辑依赖于 rules 中的 validator 函数
+  menuFormRef.value?.clearValidate(['identifier', 'path']);
 });
 
 
-// --- 查询后端接口 (已修改的逻辑，保持不变) ---
+// --- 查询后端接口 (保持不变) ---
 const getMenuList = () => {
   loading.value = true;
   const params = {
@@ -126,11 +129,11 @@ const getMenuList = () => {
 
   // 模拟数据结构，作为接口失败时的回退
   const fallbackData = [
-    { id: 1, parentId: 0, name: '系统管理', icon: 'Setting', sortId: 0, identifier: '', path: '/system', type: 0, status: 1 }, // 目录 0
-    { id: 2, parentId: 1, name: '用户管理', icon: 'User', sortId: 1, identifier: 'system:user:list', path: '/system/user', type: 1, status: 1 }, // 菜单 1
-    { id: 3, parentId: 1, name: '角色管理', icon: 'Key', sortId: 2, identifier: 'system:role:list', path: '/system/role', type: 1, status: 1 }, // 菜单 1
-    { id: 4, parentId: 2, name: '新增用户', icon: '', sortId: 0, identifier: 'system:user:add', path: '', type: 2, status: 1 }, // 操作 2
-    { id: 5, parentId: 0, name: '首页', icon: 'HomeFilled', sortId: 1, identifier: '', path: '/index', type: 1, status: 1 }, // 菜单 1
+    { id: 1, parentId: 0, name: '系统管理', icon: 'Setting', sortId: 0, identifier: '', path: '/system', type: 0, status: 1, deleted: 0 }, // 目录 0
+    { id: 2, parentId: 1, name: '用户管理', icon: 'User', sortId: 1, identifier: 'system:user:list', path: 'user', component: 'system/UserView', type: 1, status: 1, deleted: 0 }, // 菜单 1
+    { id: 3, parentId: 1, name: '角色管理', icon: 'Key', sortId: 2, identifier: 'system:role:list', path: 'role', component: 'system/RoleView', type: 1, status: 1, deleted: 0 }, // 菜单 1
+    { id: 4, parentId: 2, name: '新增用户', icon: '', sortId: 0, identifier: 'system:user:add', path: '', type: 2, status: 1, deleted: 0 }, // 操作 2
+    { id: 5, parentId: 0, name: '首页', icon: 'HomeFilled', sortId: 1, identifier: '', path: 'index', component: 'IndexView', type: 1, status: 1, deleted: 0 }, // 菜单 1
   ];
 
   axios.get(url, { params })
@@ -139,7 +142,9 @@ const getMenuList = () => {
         const dataToProcess = res.data.data || res.data;
 
         if (Array.isArray(dataToProcess)) {
-          menuList.value = handleTree(dataToProcess, 'id', 'parentId', 0);
+          // 仅对未删除的数据进行树形转换
+          const activeData = dataToProcess.filter(item => item.deleted === 0 || item.deleted === undefined);
+          menuList.value = handleTree(activeData, 'id', 'parentId', 0);
         } else {
           ElMessage.warning(res.data.message || '获取菜单列表数据失败，显示模拟数据');
           menuList.value = handleTree(fallbackData, 'id', 'parentId', 0);
@@ -197,9 +202,11 @@ const handleAdd = (row) => {
       return;
     }
     form.value.parentId = row.id;
-    form.value.type = row.type === 0 ? 1 : 2; // 目录(0) -> 菜单(1)；菜单(1) -> 操作(2)
+    // 目录(0) -> 菜单(1)；菜单(1) -> 操作(2)
+    form.value.type = row.type === 0 ? 1 : 2;
   } else {
-    form.value.type = 0; // 顶级新增默认是目录 (0)
+    // 顶级新增默认是目录 (0)
+    form.value.type = 0;
   }
   dialog.title = '新增菜单';
   dialog.visible = true;
@@ -208,6 +215,7 @@ const handleAdd = (row) => {
 /** 修改按钮操作 (保持不变) */
 const handleUpdate = (row) => {
   resetForm();
+  // 浅拷贝行数据，避免直接修改 table 数据
   form.value = { ...row };
   dialog.title = '修改菜单';
   dialog.visible = true;
@@ -224,9 +232,11 @@ const submitForm = () => {
         submitData.identifier = ''; // 目录不需要权限标识
         submitData.path = ''; // 目录不需要路由地址 (强制清空)
         submitData.icon = submitData.icon || 'Menu'; // 目录需要图标
+        submitData.component = ''; // 目录不需要组件
       } else if (submitData.type === 2) { // 操作 (2)
-        // 操作允许有 path，但是不强制要求
+        submitData.path = '';    // 操作不需要路由地址
         submitData.icon = '';    // 操作不需要图标
+        submitData.component = ''; // 操作不需要组件
       }
 
       // --- 准备 HTTP 请求 (保持不变) ---
@@ -265,7 +275,7 @@ const submitForm = () => {
   });
 };
 
-/** 删除按钮操作 (已修改的逻辑，保持不变) */
+/** 删除按钮操作 (保持不变) */
 const handleDelete = (row) => {
   ElMessageBox.confirm(
       `是否确认删除菜单名称为"${row.name}"的数据项?`,
@@ -279,6 +289,7 @@ const handleDelete = (row) => {
     // 实际删除请求
     axios.delete(`/perms/deletePerms/${row.id}`)
         .then(res => {
+          // 假设后端返回 code 200 为成功
           if (res.code === 200) {
             ElMessage.success(res.data.message || '删除成功');
           } else {
@@ -383,12 +394,10 @@ onMounted(() => {
       </el-table>
     </el-card>
 
-    <hr/>
-
     <el-dialog :title="dialog.title" v-model="dialog.visible" width="600px" @close="cancel">
       <el-form ref="menuFormRef" :model="form" :rules="rules" label-width="100px">
 
-        <el-form-item v-if="form.parentId !== 0" label="上级菜单">
+        <el-form-item v-if="form.parentId !== 0 || form.id === undefined" label="上级菜单">
           <el-tree-select
               v-model="form.parentId"
               :data="menuList"
@@ -399,8 +408,17 @@ onMounted(() => {
               filterable
               clearable
               style="width: 100%"
+              :disabled="form.id !== undefined && form.parentId === 0"
+          />
+          <el-alert
+              v-if="form.id !== undefined && form.parentId === 0"
+              title="顶级目录禁止修改上级菜单"
+              type="warning"
+              :closable="false"
+              class="mt-2"
           />
         </el-form-item>
+
         <el-form-item label="菜单类型" prop="type">
           <el-radio-group v-model="form.type">
             <el-radio :label="0">目录</el-radio>
@@ -439,8 +457,12 @@ onMounted(() => {
           <el-input v-model="form.identifier" placeholder="例如: system:user:list" />
         </el-form-item>
 
-        <el-form-item v-if="form.type !== 0" label="路由地址" prop="path">
+        <el-form-item v-if="form.type === 1" label="路由地址" prop="path">
           <el-input v-model="form.path" placeholder="请输入路由地址" />
+        </el-form-item>
+
+        <el-form-item v-if="form.type === 1" label="组件名" prop="component">
+          <el-input v-model="form.component" placeholder="例如: system/UserView" />
         </el-form-item>
 
         <el-form-item label="菜单状态">
@@ -485,6 +507,9 @@ onMounted(() => {
 }
 .mb-4 {
   margin-bottom: 16px;
+}
+.mt-2 {
+  margin-top: 8px;
 }
 .flex {
   display: flex;
