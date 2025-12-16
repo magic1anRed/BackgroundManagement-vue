@@ -147,15 +147,9 @@ const onDeleteLog = (row) => {
       params: deleteParams,
       paramsSerializer: params => qs.stringify(params)
     }).then((res) => {
-      if (res.data.code === 200) {
         ElMessage.success(`登录日志ID【${row.id}】删除成功！`);
         getLoginLogList();
-      } else {
-        ElMessage.error(res.data.message || '删除失败');
-      }
-    }).catch(err => {
-      ElMessage.error('删除请求失败: ' + err.message);
-    });
+    })
 
   }).catch(() => {
     // 用户取消操作
@@ -182,18 +176,12 @@ const onCleanLog = () => {
       }
   ).then(() => {
     // ⚡ 修正点：使用大写 '/Loginlog/clean'
-    axios.delete('/Loginlog/clean')
+    axios.delete('/Loginlog/deleteAll')
         .then((res) => {
-          if (res.data.code === 200) {
             ElMessage.success('所有登录日志已成功清空！');
             page.currentPage = 1;
             getLoginLogList();
-          } else {
-            ElMessage.error(res.data.message || '清空失败');
-          }
-        }).catch(err => {
-      ElMessage.error('清空请求失败: ' + err.message);
-    });
+        })
   }).catch(() => {
     // 用户取消操作
   });
