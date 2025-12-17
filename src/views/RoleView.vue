@@ -37,7 +37,8 @@ const allPermsMenus = ref([]);
 // 权限树控制按钮状态
 const isExpandAll = ref(false);
 const isCheckAll = ref(false);
-const isLinkage = ref(true); // 默认开启父子联动 (true: 联动, false: 独立勾选)
+// 默认关闭父子联动 (独立勾选)，解决取消父节点导致上级节点消失的问题
+const isLinkage = ref(false);
 
 // ------------------ 权限树配置 ------------------
 const treeProps = {
@@ -87,7 +88,7 @@ const onAuthRole = (row) => {
   // ⚠️ 重置权限树控制状态
   isExpandAll.value = false;
   isCheckAll.value = false;
-  isLinkage.value = true; // 默认开启联动
+  isLinkage.value = false; // 默认关闭联动
 
   // **【修改点 2：并发请求加载所有权限菜单和角色已有权限】**
   Promise.all([
@@ -110,6 +111,9 @@ const onAuthRole = (row) => {
     if (typeof permsString === 'string' && permsString) {
       try {
         rolePermsIds.value = JSON.parse(permsString);
+        if (!Array.isArray(rolePermsIds.value)) {
+          rolePermsIds.value = [];
+        }
       } catch (e) {
         console.error("解析权限ID字符串失败:", permsString, e);
         ElMessage.error('后端返回的权限数据格式错误！');
@@ -284,7 +288,7 @@ const onSavePerms = () => {
 };
 
 
-// ------------------ CRUD & 列表方法 (保持不变) ------------------
+// ------------------ CRUD & 列表方法 (包含修复) ------------------
 const getRoleList = () => {
   const params = {
     currentPage: page.currentPage,
@@ -359,16 +363,27 @@ const onDeleteRole = (row) => {
     ElMessage.info('已取消删除操作。');
   });
 }
+
+/**
+ * 修复：修改角色，添加了错误捕获，解决点击无反应问题
+ * @param {object} row 当前角色数据
+ */
 const onEditRole = (row) => {
   axios.get('/role/getRoleById', {
     params: {
       id: row.id
     }
   }).then(res => {
-    editRole.value = res.data.data;
-    editModalVisible.value = true;
+    // 兼容逻辑：尝试 res.data.data，如果失败，尝试 res.data
+      const roleData = res.data
+      editRole.value = roleData;
+      editModalVisible.value = true;
+  }).catch(error => {
+    console.error("加载角色详情失败:", error);
+    ElMessage.error('加载角色详情失败，请检查网络或接口！');
   })
 }
+
 const closeEditModal = () => {
   editRole.value = {}
   editModalVisible.value = false

@@ -19,7 +19,6 @@ export const useCurrentUserStore = defineStore('currentUser', () => {
         axios.post('/logout').then(res => {
             localStorage.removeItem('token');
             currentUser.value = null;
-            ElMessage.success('已安全注销');
             router.push('/');
         });
     }
